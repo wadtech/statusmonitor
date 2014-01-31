@@ -1,50 +1,67 @@
 package main
 
 import (
-	"bytes"
+	"encoding/json"
 	"flag"
-	"fmt"
 	"github.com/wadtech/statusmonitor/service"
+	"html/template"
 	"log"
+	"net"
 	"net/http"
 )
 
-//@todo move this out
-var workers = 10
-
-var port = flag.String("port", ":8080", "http service port")
+var portFlag = flag.String("port", "8080", "http service port")
+var workerFlag = flag.Int("workers", 10, "Number of concurrent workers testing ports")
 
 var myService = service.NewService("Port 8080 on localhost", "localhost", "8080")
 
 func main() {
-	//spin up workers based on settings given (hardcoded at first)
+	flag.Parse()
+
+	//@todo spin up workers based on settings given (hardcoded at first)
 
 	go myService.Check()
 
 	http.HandleFunc("/", check)
-	log.Println("Now waiting on 127.0.0.1", *port)
-	log.Fatal(http.ListenAndServe(*port, nil))
+	log.Println("Now waiting on 127.0.0.1", *portFlag)
+	log.Fatal(http.ListenAndServe(net.JoinHostPort("127.0.0.1", *portFlag), nil))
 }
 
 func check(w http.ResponseWriter, r *http.Request) {
-	json := false
-
 	accept := r.Header.Get("Accept")
+
 	if accept == "application/json" {
-		json = true
-	}
+		formatted, err := json.Marshal(myService)
+		if err != nil {
+			log.Println("Couldn't Marshal Service", myService.Description)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 
-	//@todo render json template if json = true, else html template from status struct
-	var buf bytes.Buffer
+		t, err := template.New("json").Parse(string(formatted))
+		if err != nil {
+			log.Println("Couldn't Render JSON Template")
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 
-	buf.WriteString(myService.Description)
-	buf.WriteString("\n")
-	buf.WriteString(fmt.Sprintf("%t", myService.Ok))
-	buf.WriteString("\n")
-	buf.WriteString("\n")
-	buf.WriteString("Statusmonitor by Wadtech 2014\n")
-	if json {
-		buf.WriteString("JSON response requested\n")
+		w.Header().Set("Content-Type", "application/json")
+		t.Execute(w, myService)
+	} else {
+		//@todo render html template
+		t, err := template.New("html").Parse(html)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+
+		t.Execute(w, myService)
 	}
-	buf.WriteTo(w)
 }
+
+var html = `<html><head><title>Status Monitor</title></head>
+<body>
+  <h3>Status</h3>
+  <ul>
+    <li><strong>{{.Description}}</strong> {{.Ok}}</li>
+  </ul>
+  <a href="http://github.com/wadtech/statusmonitor">Status monitor by Wadtech</a>
+</body>
+</html>`
