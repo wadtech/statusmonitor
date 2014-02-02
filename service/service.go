@@ -27,7 +27,10 @@ func (s *Service) Check() {
 	err = con.Close()
 	if err != nil {
 		log.Println(s.Description, "error closing connection to", s.host, s.port, "with message", err)
+		s.Ok = false
+		return
 	}
 
+	log.Println(s.Description, "returned success.")
 	s.Ok = true
 }

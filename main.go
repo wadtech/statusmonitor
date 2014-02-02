@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"github.com/wadtech/statusmonitor/checker"
 	"github.com/wadtech/statusmonitor/service"
 	"html/template"
 	"log"
@@ -10,52 +11,70 @@ import (
 	"net/http"
 )
 
-var portFlag = flag.String("port", "8080", "http service port")
-var workerFlag = flag.Int("workers", 10, "Number of concurrent workers testing ports")
+var portFlag string
+var workerFlag int
+var configFile string
 
 var myService = service.NewService("Port 8080 on localhost", "localhost", "8080")
 
 func main() {
+	flag.StringVar(&portFlag, "p", "8080", "http service port")
+	flag.IntVar(&workerFlag, "w", 10, "Number of concurrent workers")
+	flag.StringVar(&configFile, "c", "config.json", "Path to config.json file")
+
 	flag.Parse()
 
-	//@todo spin up workers based on settings given (hardcoded at first)
+	ch := make(chan *service.Service)
+	for i := 0; i < workerFlag; i++ {
+		go checker.Listen(ch)
+	}
 
-	go myService.Check()
+	//@todo this will become a looped thing based on how many jobbers are in the whatsit
+	ch <- myService
 
 	http.HandleFunc("/", check)
-	log.Println("Now waiting on 127.0.0.1", *portFlag)
-	log.Fatal(http.ListenAndServe(net.JoinHostPort("127.0.0.1", *portFlag), nil))
+	http.HandleFunc("/favicon.ico", handleFavicon)
+
+	log.Println("Now waiting on 127.0.0.1", portFlag)
+	log.Fatal(http.ListenAndServe(net.JoinHostPort("127.0.0.1", portFlag), nil))
 }
 
 func check(w http.ResponseWriter, r *http.Request) {
-	accept := r.Header.Get("Accept")
+	log.Println("Status page requested")
 
-	if accept == "application/json" {
+	if r.Header.Get("Accept") == "application/json" {
 		formatted, err := json.Marshal(myService)
 		if err != nil {
 			log.Println("Couldn't Marshal Service", myService.Description)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 
-		t, err := template.New("json").Parse(string(formatted))
+		tpl, err := template.New("json").Parse(string(formatted))
 		if err != nil {
 			log.Println("Couldn't Render JSON Template")
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 
+		log.Println("Rendering json response")
 		w.Header().Set("Content-Type", "application/json")
-		t.Execute(w, myService)
+		tpl.Execute(w, myService)
 	} else {
-		//@todo render html template
-		t, err := template.New("html").Parse(html)
+		tpl, err := template.New("html").Parse(html)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 
-		t.Execute(w, myService)
+		log.Println("Rendering html template")
+		tpl.Execute(w, myService)
 	}
 }
 
+func handleFavicon(w http.ResponseWriter, r *http.Request) {
+	log.Println("Favicon requested")
+	http.Error(w, "Not Found", http.StatusNotFound)
+}
+
+// @todo move the template somewhere else.
 var html = `<html><head><title>Status Monitor</title></head>
 <body>
   <h3>Status</h3>
