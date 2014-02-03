@@ -1,31 +1,32 @@
 # Go Status Monitor
 
-Playing with high-level networking and concurrency, a nice break from the single-threaded.
+Playing with high-level networking and concurrency, a nice break from the single-threaded stuff you get to do with most web applications.
 
 ## Usage
-provide a services.json file that looks like this
+provide a config.json file that looks like this
 
 ```json
 {
+  "port": "8080",
+  "workers": 10,
   "services": [
     {
-      "description": "port 8080 on localhost"
-      "port": "8080",
-      "host": "localhost"
+      "description": "localhost on port 8080",
+      "host": "127.0.0.1",
+      "port": "8080"
     }
   ]
 }
 ```
 
-then run `statusmonitor`
+then run `statusmonitor`. It will look in the current working directory for the config file, though it's recommended to supply the path to the file yourself (see below)
+You can
 
 cli options
 
 ```bash
--port    numeric port value to serve the status page from.
+-c    config file location.
 ```
-
-## What?
 
 statusmonitor will start serving a status page (by default) at localhost:8080 attempt to connect to the ports defined and report on success for each.
 
