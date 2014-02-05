@@ -22,12 +22,12 @@ provide a config.json file that looks like this
 then run `statusmonitor`. It will look in the current working directory for the config file, though it's recommended to supply the path to the file yourself (see below)
 You can
 
-cli options
+### Cli options
 
 ```bash
 -c    config file location.
 ```
 
-statusmonitor will start serving a status page (by default) at localhost:8080 attempt to connect to the ports defined and report on success for each.
+`statusmonitor` will start serving a status page (by default) at localhost:8080 attempt to connect to the ports defined and report on success for each.
 
-Statusmonitor speaks JSON, just send the correct request header `Accept: application/json`
+It speaks JSON, just send the correct request header `Accept: application/json`

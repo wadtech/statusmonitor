@@ -13,7 +13,7 @@ import (
 )
 
 var configurator *config.Config
-var work chan *service.Service
+var work = make(chan *service.Service, 10)
 
 var htmlResponse = template.Must(template.New("htmlResp").Parse(templateHtml))
 
@@ -24,24 +24,19 @@ func main() {
 	flag.Parse()
 
 	configurator = config.NewConfig(configFile)
-
 	log.Println("Configuration read from", configurator.Filepath)
 
 	portFlag := configurator.Config.Port
 	workerFlag := configurator.Config.Workers
 
-	work = make(chan *service.Service, 10)
+	for i, _ := range configurator.Config.Services {
+		work <- &configurator.Config.Services[i]
+	}
+
 	for i := 0; i < workerFlag; i++ {
 		go readFrom(work)
 	}
 
-	log.Println("ranging the services")
-	for _, v := range configurator.Config.Services {
-		log.Println("shoving ", v, " into channel")
-		work <- &v
-	}
-
-	log.Println("adding the handler func")
 	http.HandleFunc("/", check)
 	http.HandleFunc("/favicon.ico", handleFavicon)
 
@@ -52,14 +47,15 @@ func main() {
 }
 
 func readFrom(work chan *service.Service) {
-	select {
-	case <-work:
-		log.Println("hi9?")
-		service := <-work
-		service.Check()
-		work <- service
-
-		time.Sleep(10 * time.Second)
+	for {
+		select {
+		case service := <-work:
+			service.Check()
+			log.Println(service.Description, service.Ok)
+			work <- service
+		default:
+		}
+		time.Sleep(5 * time.Second)
 	}
 }
 

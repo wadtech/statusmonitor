@@ -16,6 +16,7 @@ type Config struct {
 type Data struct {
 	Port     string            `json:port`
 	Workers  int               `json:workers`
+	Delay    int               `json:worker_delay`
 	Services []service.Service `json:services`
 }
 
