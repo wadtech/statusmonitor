@@ -28,6 +28,7 @@ You can
 
 ```bash
 -c    config file location.
+-v    verbose log output
 ```
 
 `statusmonitor` will start serving a status page (by default) at localhost:8080 attempt to connect to the ports defined and report on success for each.
