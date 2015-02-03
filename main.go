@@ -9,11 +9,13 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
 var configurator *config.Config
 var work = make(chan *service.Service, 10)
+var verbose bool
 
 var htmlResponse = template.Must(template.New("htmlResp").Parse(templateHtml))
 
@@ -21,10 +23,16 @@ func main() {
 	var configFile string
 
 	flag.StringVar(&configFile, "c", "./config.json", "Path to config.json file")
+	flag.BoolVar(&verbose, "v", false, "Verbose logging information")
 	flag.Parse()
 
-	configurator = config.NewConfig(configFile)
-	log.Println("Configuration read from", configurator.Filepath)
+	configurator, err := config.NewConfig(configFile)
+	if err != nil {
+		log.Printf("Failed to read config from '%s': %s\n", configFile, err.Error())
+		os.Exit(1)
+	}
+
+	logMessage("Configuration read from", configurator.Filepath)
 
 	portFlag := configurator.Config.Port
 	workerFlag := configurator.Config.Workers
@@ -41,7 +49,7 @@ func main() {
 	http.HandleFunc("/favicon.ico", handleFavicon)
 
 	listen := net.JoinHostPort("127.0.0.1", portFlag)
-	log.Println("Now waiting on ", listen)
+	logMessage("Now waiting on ", listen)
 
 	log.Fatal(http.ListenAndServe(listen, nil))
 }
@@ -51,7 +59,7 @@ func readFrom(work chan *service.Service) {
 		select {
 		case service := <-work:
 			service.Check()
-			log.Println(service.Description, service.Ok)
+			logMessage(service.Description, service.Ok)
 			work <- service
 		default:
 		}
@@ -60,18 +68,18 @@ func readFrom(work chan *service.Service) {
 }
 
 func check(w http.ResponseWriter, r *http.Request) {
-	log.Println("Status page requested")
+	logMessage("Status page requested")
 
 	if r.Header.Get("Accept") == "application/json" {
 		formatted, err := json.Marshal(configurator.Config.Services)
 		if err != nil {
-			log.Println(err)
+			logMessage(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 
 		tpl, err := template.New("json").Parse(string(formatted))
 		if err != nil {
-			log.Println(err)
+			logMessage(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 
@@ -86,8 +94,14 @@ func check(w http.ResponseWriter, r *http.Request) {
 
 // 'handle'... aka dismiss without a second thought
 func handleFavicon(w http.ResponseWriter, r *http.Request) {
-	log.Println("Favicon requested")
+	logMessage("Favicon requested")
 	http.Error(w, "Not Found", http.StatusNotFound)
+}
+
+func logMessage(message ...interface{}) {
+	if verbose {
+		log.Println(message)
+	}
 }
 
 const templateHtml = `<html><head><title>Status Monitor</title></head>

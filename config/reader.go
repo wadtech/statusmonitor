@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 
 	"github.com/wadtech/statusmonitor/service"
 )
@@ -20,14 +19,14 @@ type Data struct {
 	Services []service.Service `json:services`
 }
 
-func NewConfig(filepath string) (r *Config) {
+func NewConfig(filepath string) (r *Config, err error) {
 	config, err := readConfig(filepath)
 	if err != nil {
-		//dead in the water, we couldn't find or unmarshal the config file so crash!
-		log.Panic("configuration failed to initialise with message: ", err)
+		//dead in the water, everything is probably doomed now but let the callee decide
+		return nil, err
 	}
 
-	return &Config{filepath, config}
+	return &Config{filepath, config}, err
 }
 
 func readConfig(filepath string) (config Data, err error) {
