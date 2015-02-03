@@ -2,7 +2,7 @@
 
 Playing with high-level networking and concurrency, a nice break from the single-threaded stuff you get to do with most web applications.
 
-[![baby-gopher](https://raw2.github.com/drnic/babygopher-site/gh-pages/images/babygopher-badge.png)](http://www.babygopher.org)
+[![baby-gopher](https://raw.github.com/drnic/babygopher-site/gh-pages/images/babygopher-badge.png)](http://www.babygopher.org)
 
 ## Usage
 provide a config.json file that looks like this
